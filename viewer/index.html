@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AeroTwin — 3D Viewer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-glass: rgba(15, 23, 42, 0.65);
+            --border-glass: rgba(255, 255, 255, 0.1);
+            --accent: #3b82f6;
+            --accent-hover: #60a5fa;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, #1e1b4b 100%);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        canvas { display: block; }
+
+        /* Glassmorphism Panel Base */
+        .glass-panel {
+            background: var(--bg-glass);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-glass);
+            box-shadow: var(--shadow-glass);
+            border-radius: 16px;
+            z-index: 100;
+        }
+
+        #toolbar {
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            padding: 8px;
+        }
+
+        .tool-btn {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid transparent;
+            border-radius: 10px;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tool-btn:hover { 
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .tool-btn.active { 
+            background: var(--accent);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+        }
+
+        #info-panel {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            width: 320px;
+            padding: 24px;
+        }
+
+        #info-panel h2 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        #info-panel h2::before {
+            content: '';
+            display: block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 10px var(--accent);
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .info-row:hover {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 4px;
+            padding-left: 8px;
+            padding-right: 8px;
+            margin-left: -8px;
+            margin-right: -8px;
+        }
+
+        .info-row:last-child { border-bottom: none; }
+        
+        .info-row .label { color: var(--text-secondary); font-weight: 500; }
+        .info-row .value { color: var(--text-primary); font-weight: 600; }
+
+        #upload-overlay {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 27, 75, 0.98) 100%);
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+
+        .hero-title {
+            font-size: 56px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 40px rgba(96, 165, 250, 0.3);
+            letter-spacing: -1px;
+        }
+
+        .hero-subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-bottom: 56px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        #drop-zone {
+            width: 540px;
+            height: 320px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 2px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        #drop-zone::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(96, 165, 250, 0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        #drop-zone:hover {
+            border-color: var(--accent);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(59, 130, 246, 0.2);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        #drop-zone:hover::before { opacity: 1; }
+
+        #drop-zone.dragover {
+            border-color: var(--accent);
+            background: rgba(59, 130, 246, 0.08);
+            transform: scale(1.02);
+        }
+
+        .drop-icon {
+            font-size: 56px;
+            margin-bottom: 24px;
+            filter: drop-shadow(0 0 10px rgba(96, 165, 250, 0.5));
+        }
+
+        .drop-title {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .drop-desc {
+            font-size: 15px;
+            color: var(--text-secondary);
+        }
+
+        #measurement-display {
+            position: fixed;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 16px 32px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #10b981;
+            display: none;
+            text-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        #confidence-legend {
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            padding: 20px;
+            display: none;
+        }
+
+        #confidence-legend h3 {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 10px 0;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .legend-swatch {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            box-shadow: 0 0 12px currentColor;
+        }
+    </style>
+</head>
+<body>
+    <div id="upload-overlay">
+        <h1 class="hero-title">AeroTwin</h1>
+        <p class="hero-subtitle">Single-Pass UAV Reconstruction Viewer</p>
+        <div id="drop-zone">
+            <div class="drop-icon">☁️</div>
+            <p class="drop-title">Drop .PLY point cloud here</p>
+            <p class="drop-desc">or click to browse from your computer</p>
+            <input type="file" id="file-input" accept=".ply,.pcd,.xyz" style="display:none">
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <div id="toolbar" class="glass-panel" style="display:none">
+        <button class="tool-btn active" data-tool="orbit">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path><path d="M12 3v18"></path><path d="M3 12h18"></path></svg>
+            Orbit
+        </button>
+        <button class="tool-btn" data-tool="measure">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 118 2.83"></path><path d="M22 12A10 10 0 0012 2v10z"></path></svg>
+            Measure
+        </button>
+        <button class="tool-btn" data-tool="confidence">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+            Confidence
+        </button>
+        <button class="tool-btn" data-tool="reset">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+            Reset View
+        </button>
+    </div>
+
+    <div id="info-panel" class="glass-panel" style="display:none">
+        <h2>Model Info</h2>
+        <div class="info-row"><span class="label">Points</span><span class="value" id="val-points">—</span></div>
+        <div class="info-row"><span class="label">Width (X)</span><span class="value" id="val-width">—</span></div>
+        <div class="info-row"><span class="label">Depth (Y)</span><span class="value" id="val-depth">—</span></div>
+        <div class="info-row"><span class="label">Height (Z)</span><span class="value" id="val-height">—</span></div>
+        <div class="info-row"><span class="label">GPS</span><span class="value" id="val-gps">—</span></div>
+        <div class="info-row"><span class="label">Confidence</span><span class="value" id="val-confidence">—</span></div>
+    </div>
+
+    <div id="measurement-display" class="glass-panel"></div>
+
+    <div id="confidence-legend" class="glass-panel">
+        <h3>Confidence Level</h3>
+        <div class="legend-item"><div class="legend-swatch" style="background:#10b981; color:#10b981;"></div> High (&gt;66%)</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#fbbf24; color:#fbbf24;"></div> Medium (33–66%)</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#ef4444; color:#ef4444;"></div> Low (&lt;33%)</div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>
