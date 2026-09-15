@@ -151,7 +151,7 @@ class GLViewer(QGLWidget):
         glEndList()
 
     def initializeGL(self):
-        glClearColor(0.1, 0.1, 0.12, 1.0)
+        glClearColor(0.051, 0.067, 0.09, 1.0);
         glEnable(GL_DEPTH_TEST)
         glEnable(GL_COLOR_MATERIAL)
         glEnable(GL_LIGHTING)
@@ -1228,20 +1228,20 @@ class V23DMainWindow(QMainWindow):
         # Modern dark theme QSS
         self.setStyleSheet("""
             QMainWindow {
-                background-color: #0f172a;
+                background-color: #0d1117;
             }
             QWidget {
-                color: #f8fafc;
-                font-family: 'Segoe UI', -apple-system, sans-serif;
+                color: #c9d1d9;
+                font-family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
             }
             QGroupBox {
-                background-color: rgba(30, 41, 59, 0.7);
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 12px;
+                background-color: #161b22;
+                border: 1px solid #30363d;
+                border-radius: 6px;
                 margin-top: 1.5em;
                 padding-top: 10px;
                 font-weight: 600;
-                color: #94a3b8;
+                color: #8b949e;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
@@ -1251,77 +1251,81 @@ class V23DMainWindow(QMainWindow):
                 top: 5px;
             }
             QPushButton {
-                background-color: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                background-color: #21262d;
+                border: 1px solid #30363d;
                 border-radius: 6px;
                 padding: 8px 16px;
-                color: #f8fafc;
-                font-weight: 600;
+                color: #c9d1d9;
+                font-weight: 500;
             }
             QPushButton:hover {
-                background-color: rgba(255, 255, 255, 0.1);
-                border: 1px solid rgba(255, 255, 255, 0.2);
+                background-color: #30363d;
+                border: 1px solid #8b949e;
             }
             QPushButton:pressed {
-                background-color: rgba(255, 255, 255, 0.02);
+                background-color: #282e33;
             }
             QPushButton:disabled {
-                color: #475569;
-                background-color: rgba(255, 255, 255, 0.02);
-                border: 1px solid rgba(255, 255, 255, 0.05);
+                color: #484f58;
+                background-color: #0d1117;
+                border: 1px solid #30363d;
             }
             #generateBtn {
-                background-color: #3b82f6;
-                color: white;
-                border: none;
+                background-color: #238636;
+                color: #ffffff;
+                border: 1px solid rgba(240, 246, 252, 0.1);
             }
             #generateBtn:hover {
-                background-color: #60a5fa;
+                background-color: #2ea043;
+                border: 1px solid rgba(240, 246, 252, 0.1);
             }
             #generateBtn:disabled {
-                background-color: #1e3a8a;
-                color: #94a3b8;
+                background-color: rgba(35, 134, 54, 0.4);
+                color: #8b949e;
             }
             QProgressBar {
-                background-color: #1e293b;
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                background-color: #161b22;
+                border: 1px solid #30363d;
                 border-radius: 6px;
                 text-align: center;
                 color: transparent;
                 height: 12px;
             }
             QProgressBar::chunk {
-                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3b82f6, stop:1 #8b5cf6);
+                background-color: #238636;
                 border-radius: 5px;
             }
             QSplitter::handle {
                 background-color: transparent;
             }
             QTabWidget::pane {
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                border: 1px solid #30363d;
                 border-radius: 8px;
-                background-color: rgba(15, 23, 42, 0.5);
+                background-color: #161b22;
             }
             QTabBar::tab {
-                background-color: rgba(255, 255, 255, 0.02);
-                color: #94a3b8;
+                background-color: #0d1117;
+                color: #8b949e;
                 padding: 8px 16px;
                 border-top-left-radius: 6px;
                 border-top-right-radius: 6px;
                 margin-right: 2px;
+                border: 1px solid transparent;
+                border-bottom: none;
             }
             QTabBar::tab:selected {
-                background-color: rgba(30, 41, 59, 1);
-                color: #f8fafc;
-                border-bottom: 2px solid #3b82f6;
+                background-color: #161b22;
+                color: #c9d1d9;
+                border: 1px solid #30363d;
+                border-bottom: none;
             }
             QTabBar::tab:hover:!selected {
-                background-color: rgba(255, 255, 255, 0.05);
+                background-color: #161b22;
             }
             QStatusBar {
-                background-color: #0f172a;
-                color: #94a3b8;
-                border-top: 1px solid rgba(255, 255, 255, 0.05);
+                background-color: #0d1117;
+                color: #8b949e;
+                border-top: 1px solid #30363d;
             }
         """)
 
@@ -1342,7 +1346,7 @@ class V23DMainWindow(QMainWindow):
         header = QLabel("AeroTwin")
         header.setFont(QFont("Segoe UI", 28, QFont.Bold))
         header.setStyleSheet("""
-            color: #60a5fa;
+            color: #238636;
             letter-spacing: -1px;
         """)
         
