@@ -151,11 +151,7 @@ class GLViewer(QGLWidget):
         glEndList()
 
     def initializeGL(self):
-<<<<<<< HEAD
-        glClearColor(0.051, 0.067, 0.09, 1.0);
-=======
         glClearColor(0.1, 0.1, 0.12, 1.0)
->>>>>>> fc8aa39 (Added features for 3D generation)
         glEnable(GL_DEPTH_TEST)
         glEnable(GL_COLOR_MATERIAL)
         glEnable(GL_LIGHTING)
@@ -299,28 +295,19 @@ class ReconstructionWorker(QThread):
             self.progress.emit("Segmenting scene...")
             sky_mask, ground_mask = self._segment_flat(frame, gray, hsv, depth_norm, proc_w, proc_h)
             road_mask = self._detect_roads(frame, gray, hsv, depth_norm, ground_mask, proc_w, proc_h)
-<<<<<<< HEAD
-            building_rects = self._detect_buildings(frame, gray, ground_mask, depth_norm, proc_w, proc_h)
-            turbines = self._detect_turbines_strict(frames_bgr, depth_maps, proc_w, proc_h)
-            trees, bushes = self._detect_vegetation(frame, gray, hsv, ground_mask, road_mask, depth_norm, proc_w, proc_h)
-=======
             river_mask = self._detect_river(hsv, ground_mask, road_mask, proc_w, proc_h)
             building_rects = self._detect_buildings(frame, gray, ground_mask, depth_norm, proc_w, proc_h)
             turbines = self._detect_turbines_strict(frames_bgr, depth_maps, proc_w, proc_h)
             trees, bushes = self._detect_vegetation(frame, gray, hsv, ground_mask, road_mask, depth_norm, proc_w, proc_h)
             cars = self._detect_cars(frame, road_mask, proc_w, proc_h)
             humans, animals = self._detect_entities(frame, gray, ground_mask, road_mask, river_mask, proc_w, proc_h)
->>>>>>> fc8aa39 (Added features for 3D generation)
 
             # Segmentation preview
             seg_vis = np.zeros((proc_h, proc_w, 3), dtype=np.uint8)
             seg_vis[sky_mask] = [135, 206, 235]
             seg_vis[ground_mask] = [34, 139, 34]
             seg_vis[road_mask] = [60, 60, 60]
-<<<<<<< HEAD
-=======
             seg_vis[river_mask] = [180, 130, 70] # blueish in BGR
->>>>>>> fc8aa39 (Added features for 3D generation)
             for rect in building_rects:
                 x, y, bw, bh = rect
                 seg_vis[y:y+bh, x:x+bw] = [200, 160, 60]
@@ -328,15 +315,12 @@ class ReconstructionWorker(QThread):
                 cv2.circle(seg_vis, (int(tx), int(ty)), 8, (0, 100, 0), -1)
             for bx, by in bushes:
                 cv2.circle(seg_vis, (int(bx), int(by)), 5, (0, 150, 50), -1)
-<<<<<<< HEAD
-=======
             for cx, cy in cars:
                 cv2.circle(seg_vis, (int(cx), int(cy)), 4, (0, 0, 255), -1)
             for hx, hy in humans:
                 cv2.circle(seg_vis, (int(hx), int(hy)), 3, (255, 0, 0), -1)
             for ax, ay in animals:
                 cv2.circle(seg_vis, (int(ax), int(ay)), 3, (0, 255, 255), -1)
->>>>>>> fc8aa39 (Added features for 3D generation)
             seg_path = str(Path(self.output_dir) / "segmentation.png")
             cv2.imwrite(seg_path, seg_vis)
             self.image_ready.emit(seg_path, "Segmentation")
@@ -414,8 +398,6 @@ class ReconstructionWorker(QThread):
                     all_v.append(tv); all_c.append(tc); all_f.append(tf)
                     offset += len(tv)
 
-<<<<<<< HEAD
-=======
             # 7. Rivers
             if river_mask.any():
                 self.progress.emit("Building river...")
@@ -443,7 +425,6 @@ class ReconstructionWorker(QThread):
                     all_v.append(av); all_c.append(ac); all_f.append(af)
                     offset += len(av)
 
->>>>>>> fc8aa39 (Added features for 3D generation)
             # Merge
             self.progress.emit("Saving PLY mesh...")
             all_v = [v for v in all_v if len(v) > 0]
@@ -470,8 +451,6 @@ class ReconstructionWorker(QThread):
                 parts += f", {len(trees)} trees"
             if bushes:
                 parts += f", {len(bushes)} bushes"
-<<<<<<< HEAD
-=======
             if cars:
                 parts += f", {len(cars)} cars"
             if humans:
@@ -480,7 +459,6 @@ class ReconstructionWorker(QThread):
                 parts += f", {len(animals)} animals"
             if river_mask.any():
                 parts += ", river"
->>>>>>> fc8aa39 (Added features for 3D generation)
             self.progress.emit(f"Done! {parts}")
             self.finished.emit(ply_path)
 
@@ -628,11 +606,6 @@ class ReconstructionWorker(QThread):
                         if region_std < 45:  # Very uniform
                             buildings.append((rx, ry, rw, rh))
         else:
-<<<<<<< HEAD
-            # REAL SCENE: No building detection
-            # Real drone footage captures landscapes, not distinct buildings to model
-            pass
-=======
             # REAL SCENE: Detect houses/buildings using edges and color filtering
             search_area = ground_mask.copy()
             search_area[:int(h*0.15)] = False
@@ -674,7 +647,6 @@ class ReconstructionWorker(QThread):
 
                     if 0.5 < aspect < 3.0:
                         buildings.append((rx, ry, rw, rh))
->>>>>>> fc8aa39 (Added features for 3D generation)
 
         if not buildings:
             return []
@@ -871,15 +843,12 @@ class ReconstructionWorker(QThread):
         if not is_synthetic:
             # Real scene: add gentle hills from depth
             ground_height = depth_at_grid * 3.0
-<<<<<<< HEAD
-=======
 
             # MOUNTAINS: Enhance height for distant ground areas (low depth, near sky)
             mountain_mask = ground_at_grid & (depth_at_grid < 0.35)
             mountain_multiplier = np.where(mountain_mask, 1.0 + (0.35 - depth_at_grid) * 40.0, 1.0)
             ground_height = ground_height * mountain_multiplier
 
->>>>>>> fc8aa39 (Added features for 3D generation)
             ground_height = cv2.GaussianBlur(ground_height, (15, 15), 0)
             world_z[ground_at_grid & ~road_at_grid] = ground_height[ground_at_grid & ~road_at_grid]
             # Sky areas (background) get slight negative height
@@ -1093,8 +1062,6 @@ class ReconstructionWorker(QThread):
         bushes = bushes[:30]
         return trees, bushes
 
-<<<<<<< HEAD
-=======
     def _detect_river(self, hsv, ground_mask, road_mask, w, h):
         hue, sat, val = hsv[:, :, 0], hsv[:, :, 1], hsv[:, :, 2]
         # Rivers: blue/cyan hue, low texture
@@ -1141,7 +1108,6 @@ class ReconstructionWorker(QThread):
                     animals.append((cx, cy))
         return humans[:30], animals[:30]
 
->>>>>>> fc8aa39 (Added features for 3D generation)
     def _build_tree(self, img_x, img_y, img_w, img_h, size, offset):
         """Build a simple tree: brown cylinder trunk + green cone canopy."""
         wx = (img_x / img_w - 0.5) * size
@@ -1360,8 +1326,6 @@ class ReconstructionWorker(QThread):
         return (np.array(verts, np.float32), np.array(colors, np.uint8),
                 np.array(faces, np.int32))
 
-<<<<<<< HEAD
-=======
     def _build_river(self, river_mask, w, h, size, offset):
         stride = 2
         ys, xs = np.arange(0, h, stride), np.arange(0, w, stride)
@@ -1415,7 +1379,6 @@ class ReconstructionWorker(QThread):
         faces = np.array([[0,2,1],[0,3,2],[4,5,6],[4,6,7],[0,1,5],[0,5,4],[2,3,7],[2,7,6],[0,4,7],[0,7,3],[1,2,6],[1,6,5]], dtype=np.int32) + offset
         return verts, cols, faces
 
->>>>>>> fc8aa39 (Added features for 3D generation)
     def _save_ply(self, vertices, colors, faces, path):
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         n_v, n_f = len(vertices), len(faces)
@@ -1453,22 +1416,6 @@ class V23DMainWindow(QMainWindow):
         # Modern dark theme QSS
         self.setStyleSheet("""
             QMainWindow {
-<<<<<<< HEAD
-                background-color: #0d1117;
-            }
-            QWidget {
-                color: #c9d1d9;
-                font-family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
-            }
-            QGroupBox {
-                background-color: #161b22;
-                border: 1px solid #30363d;
-                border-radius: 6px;
-                margin-top: 1.5em;
-                padding-top: 10px;
-                font-weight: 600;
-                color: #8b949e;
-=======
                 background-color: #0f172a;
             }
             QWidget {
@@ -1483,7 +1430,6 @@ class V23DMainWindow(QMainWindow):
                 padding-top: 10px;
                 font-weight: 600;
                 color: #94a3b8;
->>>>>>> fc8aa39 (Added features for 3D generation)
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
@@ -1493,43 +1439,6 @@ class V23DMainWindow(QMainWindow):
                 top: 5px;
             }
             QPushButton {
-<<<<<<< HEAD
-                background-color: #21262d;
-                border: 1px solid #30363d;
-                border-radius: 6px;
-                padding: 8px 16px;
-                color: #c9d1d9;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #30363d;
-                border: 1px solid #8b949e;
-            }
-            QPushButton:pressed {
-                background-color: #282e33;
-            }
-            QPushButton:disabled {
-                color: #484f58;
-                background-color: #0d1117;
-                border: 1px solid #30363d;
-            }
-            #generateBtn {
-                background-color: #238636;
-                color: #ffffff;
-                border: 1px solid rgba(240, 246, 252, 0.1);
-            }
-            #generateBtn:hover {
-                background-color: #2ea043;
-                border: 1px solid rgba(240, 246, 252, 0.1);
-            }
-            #generateBtn:disabled {
-                background-color: rgba(35, 134, 54, 0.4);
-                color: #8b949e;
-            }
-            QProgressBar {
-                background-color: #161b22;
-                border: 1px solid #30363d;
-=======
                 background-color: rgba(255, 255, 255, 0.05);
                 border: 1px solid rgba(255, 255, 255, 0.1);
                 border-radius: 6px;
@@ -1564,33 +1473,19 @@ class V23DMainWindow(QMainWindow):
             QProgressBar {
                 background-color: #1e293b;
                 border: 1px solid rgba(255, 255, 255, 0.1);
->>>>>>> fc8aa39 (Added features for 3D generation)
                 border-radius: 6px;
                 text-align: center;
                 color: transparent;
                 height: 12px;
             }
             QProgressBar::chunk {
-<<<<<<< HEAD
-                background-color: #238636;
-=======
                 background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3b82f6, stop:1 #8b5cf6);
->>>>>>> fc8aa39 (Added features for 3D generation)
                 border-radius: 5px;
             }
             QSplitter::handle {
                 background-color: transparent;
             }
             QTabWidget::pane {
-<<<<<<< HEAD
-                border: 1px solid #30363d;
-                border-radius: 8px;
-                background-color: #161b22;
-            }
-            QTabBar::tab {
-                background-color: #0d1117;
-                color: #8b949e;
-=======
                 border: 1px solid rgba(255, 255, 255, 0.1);
                 border-radius: 8px;
                 background-color: rgba(15, 23, 42, 0.5);
@@ -1598,29 +1493,10 @@ class V23DMainWindow(QMainWindow):
             QTabBar::tab {
                 background-color: rgba(255, 255, 255, 0.02);
                 color: #94a3b8;
->>>>>>> fc8aa39 (Added features for 3D generation)
                 padding: 8px 16px;
                 border-top-left-radius: 6px;
                 border-top-right-radius: 6px;
                 margin-right: 2px;
-<<<<<<< HEAD
-                border: 1px solid transparent;
-                border-bottom: none;
-            }
-            QTabBar::tab:selected {
-                background-color: #161b22;
-                color: #c9d1d9;
-                border: 1px solid #30363d;
-                border-bottom: none;
-            }
-            QTabBar::tab:hover:!selected {
-                background-color: #161b22;
-            }
-            QStatusBar {
-                background-color: #0d1117;
-                color: #8b949e;
-                border-top: 1px solid #30363d;
-=======
             }
             QTabBar::tab:selected {
                 background-color: rgba(30, 41, 59, 1);
@@ -1634,7 +1510,6 @@ class V23DMainWindow(QMainWindow):
                 background-color: #0f172a;
                 color: #94a3b8;
                 border-top: 1px solid rgba(255, 255, 255, 0.05);
->>>>>>> fc8aa39 (Added features for 3D generation)
             }
         """)
 
@@ -1655,11 +1530,7 @@ class V23DMainWindow(QMainWindow):
         header = QLabel("AeroTwin")
         header.setFont(QFont("Segoe UI", 28, QFont.Bold))
         header.setStyleSheet("""
-<<<<<<< HEAD
-            color: #238636;
-=======
             color: #60a5fa;
->>>>>>> fc8aa39 (Added features for 3D generation)
             letter-spacing: -1px;
         """)
         
@@ -1825,8 +1696,4 @@ def main():
 
 
 if __name__ == "__main__":
-<<<<<<< HEAD
     main()
-=======
-    main()
->>>>>>> fc8aa39 (Added features for 3D generation)
