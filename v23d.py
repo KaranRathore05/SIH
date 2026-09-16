@@ -151,7 +151,11 @@ class GLViewer(QGLWidget):
         glEndList()
 
     def initializeGL(self):
+<<<<<<< HEAD
         glClearColor(0.051, 0.067, 0.09, 1.0);
+=======
+        glClearColor(0.1, 0.1, 0.12, 1.0)
+>>>>>>> fc8aa39 (Added features for 3D generation)
         glEnable(GL_DEPTH_TEST)
         glEnable(GL_COLOR_MATERIAL)
         glEnable(GL_LIGHTING)
@@ -295,15 +299,28 @@ class ReconstructionWorker(QThread):
             self.progress.emit("Segmenting scene...")
             sky_mask, ground_mask = self._segment_flat(frame, gray, hsv, depth_norm, proc_w, proc_h)
             road_mask = self._detect_roads(frame, gray, hsv, depth_norm, ground_mask, proc_w, proc_h)
+<<<<<<< HEAD
             building_rects = self._detect_buildings(frame, gray, ground_mask, depth_norm, proc_w, proc_h)
             turbines = self._detect_turbines_strict(frames_bgr, depth_maps, proc_w, proc_h)
             trees, bushes = self._detect_vegetation(frame, gray, hsv, ground_mask, road_mask, depth_norm, proc_w, proc_h)
+=======
+            river_mask = self._detect_river(hsv, ground_mask, road_mask, proc_w, proc_h)
+            building_rects = self._detect_buildings(frame, gray, ground_mask, depth_norm, proc_w, proc_h)
+            turbines = self._detect_turbines_strict(frames_bgr, depth_maps, proc_w, proc_h)
+            trees, bushes = self._detect_vegetation(frame, gray, hsv, ground_mask, road_mask, depth_norm, proc_w, proc_h)
+            cars = self._detect_cars(frame, road_mask, proc_w, proc_h)
+            humans, animals = self._detect_entities(frame, gray, ground_mask, road_mask, river_mask, proc_w, proc_h)
+>>>>>>> fc8aa39 (Added features for 3D generation)
 
             # Segmentation preview
             seg_vis = np.zeros((proc_h, proc_w, 3), dtype=np.uint8)
             seg_vis[sky_mask] = [135, 206, 235]
             seg_vis[ground_mask] = [34, 139, 34]
             seg_vis[road_mask] = [60, 60, 60]
+<<<<<<< HEAD
+=======
+            seg_vis[river_mask] = [180, 130, 70] # blueish in BGR
+>>>>>>> fc8aa39 (Added features for 3D generation)
             for rect in building_rects:
                 x, y, bw, bh = rect
                 seg_vis[y:y+bh, x:x+bw] = [200, 160, 60]
@@ -311,6 +328,15 @@ class ReconstructionWorker(QThread):
                 cv2.circle(seg_vis, (int(tx), int(ty)), 8, (0, 100, 0), -1)
             for bx, by in bushes:
                 cv2.circle(seg_vis, (int(bx), int(by)), 5, (0, 150, 50), -1)
+<<<<<<< HEAD
+=======
+            for cx, cy in cars:
+                cv2.circle(seg_vis, (int(cx), int(cy)), 4, (0, 0, 255), -1)
+            for hx, hy in humans:
+                cv2.circle(seg_vis, (int(hx), int(hy)), 3, (255, 0, 0), -1)
+            for ax, ay in animals:
+                cv2.circle(seg_vis, (int(ax), int(ay)), 3, (0, 255, 255), -1)
+>>>>>>> fc8aa39 (Added features for 3D generation)
             seg_path = str(Path(self.output_dir) / "segmentation.png")
             cv2.imwrite(seg_path, seg_vis)
             self.image_ready.emit(seg_path, "Segmentation")
@@ -388,6 +414,36 @@ class ReconstructionWorker(QThread):
                     all_v.append(tv); all_c.append(tc); all_f.append(tf)
                     offset += len(tv)
 
+<<<<<<< HEAD
+=======
+            # 7. Rivers
+            if river_mask.any():
+                self.progress.emit("Building river...")
+                rv, rc, rf = self._build_river(river_mask, proc_w, proc_h, scene_size, offset)
+                all_v.append(rv); all_c.append(rc); all_f.append(rf)
+                offset += len(rv)
+
+            # 8. Cars
+            if cars:
+                self.progress.emit(f"Building {len(cars)} cars...")
+                for cx, cy in cars:
+                    cv, cc, cf = self._build_car(cx, cy, proc_w, proc_h, scene_size, offset)
+                    all_v.append(cv); all_c.append(cc); all_f.append(cf)
+                    offset += len(cv)
+
+            # 9. Humans and Animals
+            if humans or animals:
+                self.progress.emit(f"Building {len(humans)} humans and {len(animals)} animals...")
+                for cx, cy in humans:
+                    hv, hc, hf = self._build_human(cx, cy, proc_w, proc_h, scene_size, offset)
+                    all_v.append(hv); all_c.append(hc); all_f.append(hf)
+                    offset += len(hv)
+                for cx, cy in animals:
+                    av, ac, af = self._build_animal(cx, cy, proc_w, proc_h, scene_size, offset)
+                    all_v.append(av); all_c.append(ac); all_f.append(af)
+                    offset += len(av)
+
+>>>>>>> fc8aa39 (Added features for 3D generation)
             # Merge
             self.progress.emit("Saving PLY mesh...")
             all_v = [v for v in all_v if len(v) > 0]
@@ -414,6 +470,17 @@ class ReconstructionWorker(QThread):
                 parts += f", {len(trees)} trees"
             if bushes:
                 parts += f", {len(bushes)} bushes"
+<<<<<<< HEAD
+=======
+            if cars:
+                parts += f", {len(cars)} cars"
+            if humans:
+                parts += f", {len(humans)} humans"
+            if animals:
+                parts += f", {len(animals)} animals"
+            if river_mask.any():
+                parts += ", river"
+>>>>>>> fc8aa39 (Added features for 3D generation)
             self.progress.emit(f"Done! {parts}")
             self.finished.emit(ply_path)
 
@@ -561,9 +628,53 @@ class ReconstructionWorker(QThread):
                         if region_std < 45:  # Very uniform
                             buildings.append((rx, ry, rw, rh))
         else:
+<<<<<<< HEAD
             # REAL SCENE: No building detection
             # Real drone footage captures landscapes, not distinct buildings to model
             pass
+=======
+            # REAL SCENE: Detect houses/buildings using edges and color filtering
+            search_area = ground_mask.copy()
+            search_area[:int(h*0.15)] = False
+            search_area[int(h*0.85):] = False
+
+            # Use Canny edges to find structured objects
+            edges = cv2.Canny(gray, 50, 150)
+            edges[~search_area] = 0
+
+            # Group edges into regions
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
+            closed = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
+
+            # Filter out very green areas (grass/trees)
+            hue = hsv[:, :, 0]
+            val = hsv[:, :, 2]
+            is_green = (hue > 35) & (hue < 85) & (sat > 40)
+            closed[is_green] = 0
+
+            # Filter out very dark areas (shadows/roads)
+            is_dark = val < 50
+            closed[is_dark] = 0
+
+            # Remove small noise
+            closed = cv2.morphologyEx(closed.astype(np.uint8), cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
+
+            if closed.sum() > min_area:
+                n_labels, labels, stats, _ = cv2.connectedComponentsWithStats(
+                    closed.astype(np.uint8), connectivity=8)
+                for i in range(1, n_labels):
+                    area = stats[i, cv2.CC_STAT_AREA]
+                    if area < min_area or area > max_area:
+                        continue
+                    rx = stats[i, cv2.CC_STAT_LEFT]
+                    ry = stats[i, cv2.CC_STAT_TOP]
+                    rw = stats[i, cv2.CC_STAT_WIDTH]
+                    rh = stats[i, cv2.CC_STAT_HEIGHT]
+                    aspect = rw / max(rh, 1)
+
+                    if 0.5 < aspect < 3.0:
+                        buildings.append((rx, ry, rw, rh))
+>>>>>>> fc8aa39 (Added features for 3D generation)
 
         if not buildings:
             return []
@@ -760,6 +871,15 @@ class ReconstructionWorker(QThread):
         if not is_synthetic:
             # Real scene: add gentle hills from depth
             ground_height = depth_at_grid * 3.0
+<<<<<<< HEAD
+=======
+
+            # MOUNTAINS: Enhance height for distant ground areas (low depth, near sky)
+            mountain_mask = ground_at_grid & (depth_at_grid < 0.35)
+            mountain_multiplier = np.where(mountain_mask, 1.0 + (0.35 - depth_at_grid) * 40.0, 1.0)
+            ground_height = ground_height * mountain_multiplier
+
+>>>>>>> fc8aa39 (Added features for 3D generation)
             ground_height = cv2.GaussianBlur(ground_height, (15, 15), 0)
             world_z[ground_at_grid & ~road_at_grid] = ground_height[ground_at_grid & ~road_at_grid]
             # Sky areas (background) get slight negative height
@@ -973,6 +1093,55 @@ class ReconstructionWorker(QThread):
         bushes = bushes[:30]
         return trees, bushes
 
+<<<<<<< HEAD
+=======
+    def _detect_river(self, hsv, ground_mask, road_mask, w, h):
+        hue, sat, val = hsv[:, :, 0], hsv[:, :, 1], hsv[:, :, 2]
+        # Rivers: blue/cyan hue, low texture
+        river = ground_mask & ~road_mask
+        river &= (hue > 90) & (hue < 140)
+        river &= (val < 150)
+        river = cv2.morphologyEx(river.astype(np.uint8), cv2.MORPH_OPEN, np.ones((9, 9), np.uint8)).astype(bool)
+        return river
+
+    def _detect_cars(self, frame_bgr, road_mask, w, h):
+        gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+        cars = []
+        road_edges = cv2.Canny(gray, 50, 150)
+        road_edges[~road_mask] = 0
+        blobs = cv2.morphologyEx(road_edges, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+        n_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(blobs.astype(np.uint8), connectivity=8)
+        min_car = w * h * 0.0001
+        max_car = w * h * 0.005
+        for i in range(1, n_labels):
+            area = stats[i, cv2.CC_STAT_AREA]
+            if min_car < area < max_car:
+                cars.append((centroids[i][0], centroids[i][1]))
+        return cars[:20]
+
+    def _detect_entities(self, frame, gray, ground_mask, road_mask, river_mask, w, h):
+        # Humans and animals
+        search_area = ground_mask & ~road_mask & ~river_mask
+        edges = cv2.Canny(gray, 80, 200)
+        edges[~search_area] = 0
+        blobs = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+        humans, animals = [], []
+        n_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(blobs.astype(np.uint8), connectivity=8)
+        min_ent = w * h * 0.00005
+        max_ent = w * h * 0.002
+        for i in range(1, n_labels):
+            area = stats[i, cv2.CC_STAT_AREA]
+            if min_ent < area < max_ent:
+                rw = stats[i, cv2.CC_STAT_WIDTH]
+                rh = stats[i, cv2.CC_STAT_HEIGHT]
+                cx, cy = centroids[i]
+                if rh > rw * 1.5:
+                    humans.append((cx, cy))
+                elif rw > rh * 1.5:
+                    animals.append((cx, cy))
+        return humans[:30], animals[:30]
+
+>>>>>>> fc8aa39 (Added features for 3D generation)
     def _build_tree(self, img_x, img_y, img_w, img_h, size, offset):
         """Build a simple tree: brown cylinder trunk + green cone canopy."""
         wx = (img_x / img_w - 0.5) * size
@@ -1191,6 +1360,62 @@ class ReconstructionWorker(QThread):
         return (np.array(verts, np.float32), np.array(colors, np.uint8),
                 np.array(faces, np.int32))
 
+<<<<<<< HEAD
+=======
+    def _build_river(self, river_mask, w, h, size, offset):
+        stride = 2
+        ys, xs = np.arange(0, h, stride), np.arange(0, w, stride)
+        grid_h, grid_w = len(ys), len(xs)
+        gx, gy = np.meshgrid(xs, ys)
+        valid = river_mask[gy, gx].flatten()
+        if not valid.any():
+            return np.zeros((0,3), np.float32), np.zeros((0,3), np.uint8), np.zeros((0,3), np.int32)
+        world_x = (gx.astype(np.float32) / w - 0.5) * size
+        world_y = (gy.astype(np.float32) / h - 0.5) * size
+        world_z = np.full_like(world_x, -0.1) # slightly depressed
+        verts = np.column_stack([world_x.flatten()[valid], world_y.flatten()[valid], world_z.flatten()[valid]]).astype(np.float32)
+        cols = np.full((valid.sum(), 3), [150, 100, 60], dtype=np.uint8) # BGR for river
+        vmap = np.full(grid_h * grid_w, -1, dtype=np.int32)
+        vmap[valid] = np.arange(valid.sum())
+        vmap = vmap.reshape(grid_h, grid_w)
+        v00, v01, v10, v11 = vmap[:-1, :-1].flatten(), vmap[:-1, 1:].flatten(), vmap[1:, :-1].flatten(), vmap[1:, 1:].flatten()
+        m1 = (v00 >= 0) & (v10 >= 0) & (v01 >= 0)
+        f1 = np.column_stack([v00[m1]+offset, v10[m1]+offset, v01[m1]+offset])
+        m2 = (v10 >= 0) & (v11 >= 0) & (v01 >= 0)
+        f2 = np.column_stack([v10[m2]+offset, v11[m2]+offset, v01[m2]+offset])
+        faces = np.concatenate([f1, f2]) if len(f1) and len(f2) else (f1 if len(f1) else f2 if len(f2) else np.zeros((0,3), np.int32))
+        return verts, cols, faces.astype(np.int32)
+
+    def _build_car(self, cx, cy, img_w, img_h, size, offset):
+        wx, wy = (cx / img_w - 0.5) * size, (cy / img_h - 0.5) * size
+        cw, cl, ch = 0.5, 1.0, 0.4
+        cols = np.array([[200, 50, 50]] * 8, dtype=np.uint8) # red car
+        verts = np.array([
+            [wx-cw, wy-cl, 0.05], [wx+cw, wy-cl, 0.05], [wx+cw, wy+cl, 0.05], [wx-cw, wy+cl, 0.05],
+            [wx-cw, wy-cl, 0.05+ch], [wx+cw, wy-cl, 0.05+ch], [wx+cw, wy+cl, 0.05+ch], [wx-cw, wy+cl, 0.05+ch]
+        ], dtype=np.float32)
+        faces = np.array([[0,2,1],[0,3,2],[4,5,6],[4,6,7],[0,1,5],[0,5,4],[2,3,7],[2,7,6],[0,4,7],[0,7,3],[1,2,6],[1,6,5]], dtype=np.int32) + offset
+        return verts, cols, faces
+
+    def _build_human(self, cx, cy, img_w, img_h, size, offset):
+        wx, wy = (cx / img_w - 0.5) * size, (cy / img_h - 0.5) * size
+        verts = np.array([[wx, wy, 0.0], [wx+0.2, wy, 0.0], [wx+0.2, wy+0.2, 0.0], [wx, wy+0.2, 0.0],
+                          [wx, wy, 0.8], [wx+0.2, wy, 0.8], [wx+0.2, wy+0.2, 0.8], [wx, wy+0.2, 0.8],
+                          [wx+0.1, wy+0.1, 1.0]], dtype=np.float32)
+        cols = np.array([[50, 50, 200]] * 8 + [[250, 200, 150]], dtype=np.uint8) # blue body, skin head
+        faces = np.array([[0,2,1],[0,3,2],[4,5,6],[4,6,7],[0,1,5],[0,5,4],[2,3,7],[2,7,6],[0,4,7],[0,7,3],[1,2,6],[1,6,5],
+                          [4,5,8], [5,6,8], [6,7,8], [7,4,8]], dtype=np.int32) + offset
+        return verts, cols, faces
+
+    def _build_animal(self, cx, cy, img_w, img_h, size, offset):
+        wx, wy = (cx / img_w - 0.5) * size, (cy / img_h - 0.5) * size
+        verts = np.array([[wx-0.3, wy-0.2, 0.1], [wx+0.3, wy-0.2, 0.1], [wx+0.3, wy+0.2, 0.1], [wx-0.3, wy+0.2, 0.1],
+                          [wx-0.3, wy-0.2, 0.5], [wx+0.3, wy-0.2, 0.5], [wx+0.3, wy+0.2, 0.5], [wx-0.3, wy+0.2, 0.5]], dtype=np.float32)
+        cols = np.array([[139, 69, 19]] * 8, dtype=np.uint8) # brown animal
+        faces = np.array([[0,2,1],[0,3,2],[4,5,6],[4,6,7],[0,1,5],[0,5,4],[2,3,7],[2,7,6],[0,4,7],[0,7,3],[1,2,6],[1,6,5]], dtype=np.int32) + offset
+        return verts, cols, faces
+
+>>>>>>> fc8aa39 (Added features for 3D generation)
     def _save_ply(self, vertices, colors, faces, path):
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         n_v, n_f = len(vertices), len(faces)
@@ -1228,6 +1453,7 @@ class V23DMainWindow(QMainWindow):
         # Modern dark theme QSS
         self.setStyleSheet("""
             QMainWindow {
+<<<<<<< HEAD
                 background-color: #0d1117;
             }
             QWidget {
@@ -1242,6 +1468,22 @@ class V23DMainWindow(QMainWindow):
                 padding-top: 10px;
                 font-weight: 600;
                 color: #8b949e;
+=======
+                background-color: #0f172a;
+            }
+            QWidget {
+                color: #f8fafc;
+                font-family: 'Segoe UI', -apple-system, sans-serif;
+            }
+            QGroupBox {
+                background-color: rgba(30, 41, 59, 0.7);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 12px;
+                margin-top: 1.5em;
+                padding-top: 10px;
+                font-weight: 600;
+                color: #94a3b8;
+>>>>>>> fc8aa39 (Added features for 3D generation)
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
@@ -1251,6 +1493,7 @@ class V23DMainWindow(QMainWindow):
                 top: 5px;
             }
             QPushButton {
+<<<<<<< HEAD
                 background-color: #21262d;
                 border: 1px solid #30363d;
                 border-radius: 6px;
@@ -1286,19 +1529,60 @@ class V23DMainWindow(QMainWindow):
             QProgressBar {
                 background-color: #161b22;
                 border: 1px solid #30363d;
+=======
+                background-color: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 6px;
+                padding: 8px 16px;
+                color: #f8fafc;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background-color: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }
+            QPushButton:pressed {
+                background-color: rgba(255, 255, 255, 0.02);
+            }
+            QPushButton:disabled {
+                color: #475569;
+                background-color: rgba(255, 255, 255, 0.02);
+                border: 1px solid rgba(255, 255, 255, 0.05);
+            }
+            #generateBtn {
+                background-color: #3b82f6;
+                color: white;
+                border: none;
+            }
+            #generateBtn:hover {
+                background-color: #60a5fa;
+            }
+            #generateBtn:disabled {
+                background-color: #1e3a8a;
+                color: #94a3b8;
+            }
+            QProgressBar {
+                background-color: #1e293b;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+>>>>>>> fc8aa39 (Added features for 3D generation)
                 border-radius: 6px;
                 text-align: center;
                 color: transparent;
                 height: 12px;
             }
             QProgressBar::chunk {
+<<<<<<< HEAD
                 background-color: #238636;
+=======
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3b82f6, stop:1 #8b5cf6);
+>>>>>>> fc8aa39 (Added features for 3D generation)
                 border-radius: 5px;
             }
             QSplitter::handle {
                 background-color: transparent;
             }
             QTabWidget::pane {
+<<<<<<< HEAD
                 border: 1px solid #30363d;
                 border-radius: 8px;
                 background-color: #161b22;
@@ -1306,10 +1590,20 @@ class V23DMainWindow(QMainWindow):
             QTabBar::tab {
                 background-color: #0d1117;
                 color: #8b949e;
+=======
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+                background-color: rgba(15, 23, 42, 0.5);
+            }
+            QTabBar::tab {
+                background-color: rgba(255, 255, 255, 0.02);
+                color: #94a3b8;
+>>>>>>> fc8aa39 (Added features for 3D generation)
                 padding: 8px 16px;
                 border-top-left-radius: 6px;
                 border-top-right-radius: 6px;
                 margin-right: 2px;
+<<<<<<< HEAD
                 border: 1px solid transparent;
                 border-bottom: none;
             }
@@ -1326,6 +1620,21 @@ class V23DMainWindow(QMainWindow):
                 background-color: #0d1117;
                 color: #8b949e;
                 border-top: 1px solid #30363d;
+=======
+            }
+            QTabBar::tab:selected {
+                background-color: rgba(30, 41, 59, 1);
+                color: #f8fafc;
+                border-bottom: 2px solid #3b82f6;
+            }
+            QTabBar::tab:hover:!selected {
+                background-color: rgba(255, 255, 255, 0.05);
+            }
+            QStatusBar {
+                background-color: #0f172a;
+                color: #94a3b8;
+                border-top: 1px solid rgba(255, 255, 255, 0.05);
+>>>>>>> fc8aa39 (Added features for 3D generation)
             }
         """)
 
@@ -1346,7 +1655,11 @@ class V23DMainWindow(QMainWindow):
         header = QLabel("AeroTwin")
         header.setFont(QFont("Segoe UI", 28, QFont.Bold))
         header.setStyleSheet("""
+<<<<<<< HEAD
             color: #238636;
+=======
+            color: #60a5fa;
+>>>>>>> fc8aa39 (Added features for 3D generation)
             letter-spacing: -1px;
         """)
         
@@ -1512,4 +1825,8 @@ def main():
 
 
 if __name__ == "__main__":
+<<<<<<< HEAD
     main()
+=======
+    main()
+>>>>>>> fc8aa39 (Added features for 3D generation)
