@@ -5,6 +5,7 @@
   <img src="https://img.shields.io/badge/PyTorch-2.0%2B-ee4c2c" alt="PyTorch 2.0+">
   <img src="https://img.shields.io/badge/OpenCV-4.8%2B-5C3EE8" alt="OpenCV 4.8+">
   <img src="https://img.shields.io/badge/Three.js-WebGL-black" alt="Three.js">
+  <img src="https://img.shields.io/badge/React-18%2B-61DAFB" alt="React">
   <img src="https://img.shields.io/badge/PyQt5-Desktop_UI-41CD52" alt="PyQt5">
   <img src="https://img.shields.io/badge/COLMAP-SfM-yellow" alt="COLMAP">
 </p>
@@ -35,13 +36,13 @@ graph TD
     %% Core Processing Layer
     subgraph Core Processing
     C1[COLMAP SfM<br><i>SIFT + Bundle Adjustment</i>]
-    C2[MiDaS Small ONNX<br><i>Monocular Depth</i>]
+    C2[Depth Anything V2 / MiDaS<br><i>Monocular Depth ONNX</i>]
     end
 
     %% Geospatial Layer
     subgraph Geospatial Alignment
     D1[Coordinate Projection<br><i>WGS84 -> UTM</i>]
-    D2[Scale Estimation<br><i>GPS Baseline</i>]
+    D2[Scale Estimation<br><i>GPS Procrustes Alignment</i>]
     end
 
     %% Fusion Layer
@@ -50,13 +51,14 @@ graph TD
     E2[Coordinate Transform<br><i>Poses R, t</i>]
     E3[Statistical Outlier Removal<br><i>Open3D SOR</i>]
     E4[Voxel Downsampling<br><i>Open3D Grid</i>]
+    E5[Confidence Estimation<br><i>Heuristic Scoring</i>]
     end
 
     %% Output & Viewers
     subgraph Outputs & UIs
     F1[(Dense Point Cloud<br>.PLY format)]
     F2[PyQt5 Desktop App<br><i>v23d.py</i>]
-    F3[Three.js Web Viewer<br><i>vite + html5</i>]
+    F3[Nexus Web Viewer<br><i>React + Three.js</i>]
     end
 
     %% Edges
@@ -68,13 +70,15 @@ graph TD
     B3 --> C2
     C1 -->|Camera Poses & Intrinsics| D2
     C1 -->|Camera Poses & Intrinsics| E2
+    C1 -->|Sparse Points| E5
     C2 -->|Dense Depth Maps| E1
     D1 --> D2
     D2 -->|Metric Scale| E2
     E1 --> E2
     E2 --> E3
     E3 --> E4
-    E4 --> F1
+    E4 --> E5
+    E5 --> F1
     F1 --> F2
     F1 --> F3
 
@@ -85,146 +89,172 @@ graph TD
     
     class A1,A2 input
     class F1,F2,F3 output
-    class C1,C2,E3 algo
+    class C1,C2,E3,E5 algo
 ```
 
 ---
 
 ## ⚙️ 2. Detailed Algorithmic Workflow
 
-The system is executed through `src/pipeline.py` which triggers a 7-stage process.
+The system is executed through `src/pipeline.py` which triggers a rigorous 7-stage process. 
 
-### Stage 1: Frame Extraction (`src/frame_extraction/extractor.py`)
-- Reads the video file using `cv2.VideoCapture`.
-- Target FPS is determined by `config.yaml` (default `2.0` FPS).
-- Bound by `min_frames` (50) and `max_frames` (200) to ensure processing doesn't consume unbounded memory.
+### Stage 1, 2, & 3: Frame Intelligence
 
-### Stage 2: Quality Scoring (`src/frame_extraction/quality.py`)
-- Uses **Laplacian Variance** (`cv2.Laplacian`) to evaluate the sharpness of every frame.
-- High variance indicates a sharp image with high-frequency details (ideal for SIFT features).
-- Frames below a `blur_threshold` (100.0) are penalized.
+To optimize computation, we do not process every frame of a 60FPS video. Instead, we intelligently select the best frames that provide maximum spatial coverage.
 
-### Stage 3: Keyframe Selection (`src/frame_extraction/selector.py`)
-- Filters frames to maximize spatial coverage without redundancy.
-- Integrates `gps_spacing_m` (default 2.0m) to enforce a baseline distance between frames if GPS telemetry is provided.
+```mermaid
+sequenceDiagram
+    participant V as Video (.mp4)
+    participant E as Frame Extractor
+    participant Q as Quality Scorer
+    participant S as Keyframe Selector
+    participant C as COLMAP/Depth Engine
+    
+    V->>E: Stream Video
+    E->>E: Extract at Target FPS (e.g. 2.0)
+    E->>Q: Pass Raw Frames
+    Q->>Q: Calculate Laplacian Variance
+    alt Variance < blur_threshold (100.0)
+        Q-->>E: Discard Frame (Blurry)
+    else Variance >= blur_threshold
+        Q->>S: Accept Frame
+    end
+    S->>S: Apply Spatial/Temporal Filter
+    S->>S: Enforce gps_spacing_m (e.g. 2.0m)
+    S->>C: Output Final Keyframes
+```
 
-### Stage 4: Structure from Motion (COLMAP) (`src/sfm/colmap_wrapper.py`)
-- **Feature Extraction**: Triggers COLMAP to extract SIFT features.
-- **Feature Matching**: Uses sequential matching (`matcher_type: "sequential"`) with an overlap of 10 frames to optimize computation.
-- **Sparse Reconstruction**: Performs incremental Bundle Adjustment (BA), refining focal lengths and extra parameters (`ba_refine_extra_params: true`).
-- **Outputs**: Sparse 3D points, intrinsic matrices (`K`), and extrinsic poses (Rotation `R`, Translation `t`).
+- **Frame Extraction (`extractor.py`)**: Bound by `min_frames` (50) and `max_frames` (200) to ensure predictable memory consumption.
+- **Quality Scoring (`quality.py`)**: Uses **Laplacian Variance** (`cv2.Laplacian`) to evaluate image sharpness.
+- **Keyframe Selection (`selector.py`)**: Prevents redundant processing while maintaining necessary overlap for SfM matching.
 
-### Stage 5: Dense Depth Estimation (`src/depth/estimator.py`)
-- Utilizes **Depth Anything V2** (configured as `vitl`) or **MiDaS Small ONNX** model.
-- Because SfM struggles with textureless surfaces (sky, water, flat roads), neural monocular depth provides dense structural understanding.
-- Runs inference on batches (`batch_size: 4`) scaling images to `input_size: 518`.
+### Stage 4 & 5: Core Scene Understanding
 
-### Stage 6: Geospatial Alignment (`src/geospatial/`)
-- Maps local arbitrary COLMAP coordinates to real-world WGS84 coordinates.
-- **`coordinate.py`**: Handles EPSG:4326 to UTM projection.
-- **`gps_alignment.py` / `metric_scale.py`**: Computes the rigid 3D transformation (Scale, Rotation, Translation) between the SfM camera centers and the drone's GPS logs using Procrustes analysis.
+This is the dual-engine core of AeroTwin. It combines classical geometry with modern AI.
 
-### Stage 7: Depth Fusion & Meshing (`src/reconstruction/fusion.py`)
-1. **Depth Unprojection**: 2D depth maps are unprojected to 3D space using the solved intrinsic matrix $K$: 
-   $Z = \text{depth}(u, v)$
-   $X = (u - c_x) \times \frac{Z}{f_x}$
-   $Y = (v - c_y) \times \frac{Z}{f_y}$
-2. **Coordinate Transformation**: Points are transformed into the unified world space using extrinsic poses $P = R \times p_{cam} + t$.
-3. **Filtering**: `Open3D` applies Statistical Outlier Removal (SOR, 20 neighbors, std ratio 2.0) to remove floating noise.
-4. **Voxel Grid Downsampling**: The massive point cloud is downsampled (voxel size `0.05m`) to balance density and performance.
+```mermaid
+flowchart LR
+    KF[Keyframes] --> SfM(COLMAP SfM)
+    KF --> AI(Deep Learning Depth)
+    
+    SfM --> |Sparse Points| Fuse{Fusion Engine}
+    SfM --> |Extrinsics R, t| Fuse
+    SfM --> |Intrinsics K| Fuse
+    
+    AI --> |Dense Depth Maps Z| Fuse
+    
+    Fuse --> |Point Cloud| Out[(Dense Cloud)]
+```
+
+- **COLMAP (`colmap_wrapper.py`)**: 
+  - Uses sequential matching (`matcher_type: "sequential"`) assuming video frame continuity.
+  - Performs incremental Bundle Adjustment (BA) to solve for camera poses (Extrinsics) and focal lengths (Intrinsics).
+- **Depth Estimation (`estimator.py`)**:
+  - Utilizes **Depth Anything V2** (`vitl`) or **MiDaS Small ONNX**.
+  - Provides structural understanding for textureless surfaces (water, roads) where COLMAP's SIFT features typically fail.
+
+### Stage 6: Geospatial Alignment
+- Translates arbitrary local coordinates into real-world geographic coordinates.
+- Projects EPSG:4326 (Lat/Lon) to UTM.
+- Calculates a rigid 3D transformation (Scale, Rotation, Translation) between SfM camera centers and GPS logs using **Procrustes Analysis**.
+
+### Stage 7: Depth Fusion & Optimization
+- **Unprojection**: Reconstructs 3D coordinates from 2D pixels using the intrinsic matrix $K$.
+- **Coordinate Transformation**: Moves points into the world space using the solved extrinsics.
+- **Filtering**: Open3D's Statistical Outlier Removal (SOR) cleans up floating noise.
+- **Voxel Grid Downsampling**: A voxel grid (e.g., `0.05m`) homogenizes the point density.
 
 ---
 
 ## 📊 3. Confidence Estimation Algorithm
 
-Located in `src/confidence/estimator.py`, this is a unique feature of AeroTwin that scores the reliability of every generated 3D point.
+A unique feature of AeroTwin (`src/confidence/estimator.py`) is its ability to score the physical reliability of every generated 3D point.
 
-**Weighted Confidence Metrics:**
-- `observation_weight` (0.3): Number of cameras that see the point.
-- `reprojection_weight` (0.3): Distance between the projected 3D point and the 2D feature.
-- `depth_consistency_weight` (0.2): Variance of the depth value across overlapping frames.
-- `gps_residual_weight` (0.2): Confidence derived from the GPS alignment residual error.
+**Heuristic Confidence Function:**
 
-The output point cloud is saved as `confidence.ply`, where point colors map to confidence values:
-- 🟢 **High (>66%)**: Solid structures observed from multiple angles.
-- 🟡 **Medium (33-66%)**: Edges or slightly occluded regions.
-- 🔴 **Low (<33%)**: Flying pixels, sky, or moving objects.
+$C = 0.3(W_{obs}) + 0.3(W_{reproj}) + 0.2(W_{depth}) + 0.2(W_{gps})$
+
+- $W_{obs}$: Observation weight (How many cameras see this point?)
+- $W_{reproj}$: Reprojection error (Distance between projected 3D point and 2D feature)
+- $W_{depth}$: Depth consistency (Variance of the AI depth value across overlapping frames)
+- $W_{gps}$: GPS residual weight (Error in Procrustes alignment)
+
+Output is stored in `confidence.ply`:
+- 🟢 **High (>66%)**: Solid, multi-view verified structures.
+- 🟡 **Medium (33-66%)**: Edges or partially occluded regions.
+- 🔴 **Low (<33%)**: Unreliable geometry (sky, moving cars, noise).
 
 ---
 
 ## 🖥️ 4. Application Interfaces
 
 ### A. The PyQt5 Desktop Application (`v23d.py`)
-The primary interface for executing the pipeline on a local machine.
-- **Modern QSS Styling**: Implements a dark-mode, glassmorphism theme using advanced Qt Style Sheets.
-- **Threading**: Uses `QThread` (`ReconstructionWorker`) to prevent UI blocking during heavy processing.
-- **Real-Time OpenGL Viewer**: `GLViewer(QGLWidget)` utilizes raw `OpenGL` Vertex Buffer Objects (VBOs) via `glDrawArrays` to instantly render millions of points efficiently.
-- **Preview Tabs**: Uses `QTabWidget` to display mid-processing outputs (Source Frames vs. MiDaS Depth color maps).
+The primary offline processing GUI.
+- **Architecture**: Separates UI from processing using `QThread` (`ReconstructionWorker`).
+- **Rendering**: Implements a high-performance `GLViewer(QGLWidget)` using raw OpenGL VBOs via `glDrawArrays` to render millions of points in real-time.
+- **Styling**: Modern dark-mode glassmorphism via advanced Qt Style Sheets.
 
-### B. The Hardware-Accelerated Web Viewer (`viewer/`)
-For sharing and web visualization, powered by **Vite** and **Three.js**.
-- **Tech Stack**: `HTML5`, `CSS3` (Glassmorphism UI), `Three.js` (WebGL engine).
-- **Core Loop (`src/main.js`)**:
-  - Utilizes `PLYLoader` to parse `.ply` geometry into `THREE.BufferGeometry`.
-  - Sets up `OrbitControls` with damping for smooth cinematic rotation.
-- **Measurement Tool**: Implements `THREE.Raycaster` projecting from the camera to the Point Cloud geometry. Clicking two points calculates the real-world metric Euclidean distance between them (since the model is metrically scaled via GPS).
-- **Styling**: `index.html` uses `#0f172a` slate themes, backdrop filters for frosted glass panels, and CSS animations.
+### B. Nexus Web Gateway & 3D Viewer (`viewer/`)
+The premium, hardware-accelerated web interface powered by **Vite, React, and Three.js**.
 
----
-
-## 🎛️ 5. Hyperparameter Configuration (`config/default.yaml`)
-
-The pipeline behaviour is deeply configurable via `config/default.yaml`.
-
-| Section | Parameter | Default | Effect |
-| :--- | :--- | :--- | :--- |
-| `frame_extraction` | `blur_threshold` | 100.0 | Minimum Laplacian variance. Lowering this admits blurrier frames. |
-| `frame_extraction` | `target_fps` | 2.0 | Sample rate from video. Higher = more processing time, denser cloud. |
-| `sfm` | `matcher_type` | "sequential" | "exhaustive" tests all pairs, "sequential" assumes video format (faster). |
-| `depth` | `batch_size` | 4 | Batch size for ONNX inference. Adjust based on GPU VRAM. |
-| `reconstruction` | `voxel_size` | 0.05 | Point cloud density in meters. `0.05` means points are 5cm apart. |
-| `reconstruction` | `depth_trunc` | 50.0 | Max reliable depth distance in meters. Pixels further away are ignored. |
+- **The Nexus Gateway (`gateway-flow.tsx`)**: 
+  - Serves as the high-end entrance/authentication UI for the platform.
+  - Built with React and GSAP, featuring a dynamic HTML5 canvas particle flow system mimicking data routing and distributed consensus.
+  - Integrates interactive `threeui-controls` for realtime visual adjustments (speed, density, dark/light modes).
+- **Core WebGL Viewer (`main.js` / `demo.tsx`)**:
+  - Implements `THREE.BufferGeometry` via `PLYLoader` for efficient rendering.
+  - Includes a `THREE.Raycaster` based measurement tool allowing users to calculate real-world Euclidean distances between points (leveraging the GPS metric scale).
 
 ---
 
-## 📁 6. Complete Directory Structure
+## 📁 5. Complete Directory Structure
 
 ```text
 SIH/
 ├── v23d.py                  # PyQt5 Desktop Entry Point
 ├── V23D.bat                 # Windows execution script
-├── pyproject.toml           # Python package definition (Dependencies)
-├── README.md                # System documentation
+├── pyproject.toml           # Python package definition
+├── README.md                # Detailed System documentation
 ├── config/
-│   └── default.yaml         # Core hyperparameters
+│   └── default.yaml         # Core hyperparameters (SfM, Extractor, Fusion)
 ├── models/
 │   └── midas_small.onnx     # Deep Learning Depth Model Weights
 ├── scripts/
-│   ├── run_pipeline.py      # CLI tool (argparse wrapper for src/pipeline.py)
-│   ├── run_demo.py          # Demo runner for test assets
-│   ├── generate_synthetic.py# Tool for creating synthetic test data
-│   └── reconstruct_terrain.py # Terrain specific reconstruction script
+│   └── run_pipeline.py      # Headless CLI orchestrator
 ├── src/                     # Core Processing Logic
-│   ├── pipeline.py          # Master Orchestrator Class
-│   ├── confidence/          # Statistical confidence grading module
-│   ├── depth/               # MiDaS ONNX Inference runner
-│   ├── frame_extraction/    # Video decoding and Laplacian scoring
-│   ├── geospatial/          # EPSG/UTM projections and Procrustes alignment
-│   ├── reconstruction/      # 3D unprojection, Depth Fusion, Open3D SOR
-│   ├── sfm/                 # COLMAP Subprocess caller and Pose Graph
-│   ├── utils/               # General I/O and metadata logging
-│   └── viewer_server.py     # Flask backend for serving models to Web UI
-├── tests/                   # PyTest Suite
-│   ├── test_frame_extraction.py
-│   ├── test_geospatial.py
-│   └── test_pipeline.py
-└── viewer/                  # Three.js Web Application
-    ├── index.html           # Premium Glass UI Document
-    ├── package.json         # Node scripts & Vite/Threejs dependencies
+│   ├── pipeline.py          # Master Orchestrator (7-stages)
+│   ├── confidence/          # Heuristic confidence grading
+│   ├── depth/               # ONNX Depth inference
+│   ├── frame_extraction/    # Laplacian scoring and selection
+│   ├── geospatial/          # EPSG/UTM and Procrustes alignment
+│   ├── reconstruction/      # Unprojection and Open3D voxelization
+│   ├── sfm/                 # COLMAP Subprocess and Pose Graph
+│   └── viewer_server.py     # Local model server backend
+└── viewer/                  # React + Three.js Web Application
+    ├── package.json         # Node dependencies
     ├── vite.config.js       # Bundler settings
     └── src/
-        └── main.js          # WebGL rendering, PLY Loading, and Raycasting
+        ├── main.js          # WebGL rendering and PLY Loading
+        └── components/
+            └── ui/
+                ├── demo.tsx         # Gateway UI demo wrapper
+                └── gateway-flow.tsx # React/GSAP particle visualization
 ```
+
+---
+
+## 🎛️ 6. Hyperparameter Configuration (`config/default.yaml`)
+
+Tuning these parameters dictates the balance between processing speed and 3D model quality.
+
+| Section | Parameter | Default | Effect |
+| :--- | :--- | :--- | :--- |
+| `frame_extraction` | `blur_threshold` | 100.0 | Lowering admits blurrier frames (useful for fast drone speeds). |
+| `frame_extraction` | `target_fps` | 2.0 | Higher = more overlap, denser cloud, exponentially slower SfM. |
+| `sfm` | `matcher_type` | "sequential" | "sequential" expects video order. Use "exhaustive" for unordered photos. |
+| `depth` | `batch_size` | 4 | ONNX inference batch size. Increase if you have high VRAM. |
+| `reconstruction` | `voxel_size` | 0.05 | Point distance in meters. `0.05` = 5cm resolution. |
+| `reconstruction` | `depth_trunc` | 50.0 | Max distance (m) to trust depth AI. Clips sky and far backgrounds. |
 
 ---
 
@@ -234,53 +264,44 @@ SIH/
 - **OS**: Windows 10/11, Ubuntu 20.04+, macOS 12+
 - **Python**: `3.10` or higher
 - **COLMAP**: You MUST install [COLMAP](https://colmap.github.io/install.html) and add it to your system `PATH`.
-- **Node.js**: (Optional) Required only if you want to modify the Web Viewer.
+- **Node.js**: Required to run the Nexus Web Gateway.
 
-### B. Python Environment Setup
-We highly recommend using a Virtual Environment.
-
+### B. Environment Setup
 ```bash
-# 1. Initialize virtual environment
+# 1. Virtual environment
 python -m venv venv
+venv\Scripts\activate  # Windows
+# source venv/bin/activate # Unix
 
-# 2. Activate it
-# On Windows:
-venv\Scripts\activate
-# On Unix:
-source venv/bin/activate
-
-# 3. Install the project in editable mode (installs all deps from pyproject.toml)
+# 2. Install dependencies
 pip install -e .
 ```
 
-### C. Running via GUI (Recommended)
-You can launch the PyQt5 GUI using the provided batch script or directly via python.
+### C. Running the Pipeline
+**Via GUI:**
 ```bash
-# Double click V23D.bat or run:
 python v23d.py
 ```
-- Click **"Browse Video"**, select your UAV drone footage.
-- Click **"Generate 3D Model"**.
-- Monitor the tabs as depth maps are generated.
-- The 3D view will populate automatically when finished.
+- Click **"Browse Video"**, select your UAV drone footage, and click **"Generate 3D Model"**.
 
-### D. Running via CLI (For Servers/Headless)
-Execute the pipeline via command line using the custom script.
+**Via CLI (Headless):**
 ```bash
-aerotwin path/to/drone_video.mp4 --output ./my_model --viewer
+aerotwin path/to/drone_video.mp4 --gps path/to/telemetry.csv --output ./my_model
 ```
-- `--gps path/to/telemetry.csv`: Inject GPS logs for metric scaling.
-- `--no-depth`: Skips AI depth estimation, relying solely on COLMAP sparse points.
-- `--viewer`: Automatically spins up `src/viewer_server.py` and opens your browser when done.
 
-### E. Launching the Web Viewer Manually
-To view any `.ply` file in your browser with measurement tools:
+### D. Launching the Nexus Web Viewer
+To interact with the new React UI and view `.ply` models:
 ```bash
 cd viewer
 npm install
 npm run dev
 ```
-Open `http://localhost:5173`. Drag and drop your generated `.ply` file into the browser window.
+Navigate to `http://localhost:5173`.
+
+### ⚠️ Common Troubleshooting
+- **COLMAP Errors**: Ensure typing `colmap` in your terminal launches the program. If not, add the COLMAP installation directory to your System Environment Variables (`PATH`).
+- **CUDA OOM (Out of Memory)**: If the pipeline crashes during the depth stage, lower `batch_size: 2` in `config/default.yaml`.
+- **No Dense Cloud Generated**: This usually implies the SfM matching failed. Try reducing `blur_threshold` or increasing `target_fps` to ensure frames overlap sufficiently.
 
 ---
 
