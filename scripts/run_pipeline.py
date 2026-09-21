@@ -1,4 +1,4 @@
-"""CLI entry point for the AeroTwin reconstruction pipeline."""
+"""CLI entry point for the AeroVision reconstruction pipeline."""
 
 import argparse
 import sys
@@ -7,7 +7,7 @@ from pathlib import Path
 
 def main():
     parser = argparse.ArgumentParser(
-        description="AeroTwin — Single-Pass UAV Video to Georeferenced 3D Model"
+        description="AeroVision — Single-Pass UAV Video to Georeferenced 3D Model"
     )
     parser.add_argument("video", help="Path to drone video file")
     parser.add_argument("--gps", help="Path to GPS CSV (timestamp,lat,lon,alt)")

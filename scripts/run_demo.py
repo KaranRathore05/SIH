@@ -40,7 +40,7 @@ def main():
         config = yaml.safe_load(f)
 
     print("=" * 60)
-    print("  AEROTWIN — Single-Pass UAV Reconstruction Demo")
+    print("  AEROVISION — Single-Pass UAV Reconstruction Demo")
     print("=" * 60)
     print()
 

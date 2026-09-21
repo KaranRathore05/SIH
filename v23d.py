@@ -1527,7 +1527,7 @@ class V23DMainWindow(QMainWindow):
         header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(4)
         
-        header = QLabel("AeroTwin")
+        header = QLabel("AeroVision")
         header.setFont(QFont("Segoe UI", 28, QFont.Bold))
         header.setStyleSheet("""
             color: #60a5fa;
@@ -1688,7 +1688,7 @@ class V23DMainWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-    app.setApplicationName("AeroTwin")
+    app.setApplicationName("AeroVision")
     app.setStyle("Fusion")
     window = V23DMainWindow()
     window.show()

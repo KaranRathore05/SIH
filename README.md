@@ -1,4 +1,4 @@
-# AeroTwin (V23D) â€” Advanced Single-Pass UAV Video to 3D Model Generator
+# AeroVision (V23D) GÇö Advanced Single-Pass UAV Video to 3D Model Generator
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue" alt="Python 3.10+">
@@ -10,11 +10,11 @@
   <img src="https://img.shields.io/badge/COLMAP-SfM-yellow" alt="COLMAP">
 </p>
 
-AeroTwin (internally codenamed `V23D`) is an advanced computer vision and photogrammetry pipeline designed to convert a single UAV/drone video flyover into a dense, georeferenced, and scalable 3D point cloud model. By combining robust classical photogrammetry (SfM) with state-of-the-art Deep Learning (Monocular Depth Estimation), AeroTwin generates highly accurate 3D assets suitable for GIS mapping, digital twins, and simulation environments.
+AeroVision (internally codenamed `V23D`) is an advanced computer vision and photogrammetry pipeline designed to convert a single UAV/drone video flyover into a dense, georeferenced, and scalable 3D point cloud model. By combining robust classical photogrammetry (SfM) with state-of-the-art Deep Learning (Monocular Depth Estimation), AeroVision generates highly accurate 3D assets suitable for GIS mapping, digital twins, and simulation environments.
 
 ---
 
-## ðŸ—ï¸ 1. Complete System Architecture
+## =ƒÅùn+Å 1. Complete System Architecture
 
 The pipeline orchestrates multiple computational stages, passing data structurally from raw video down to a fused dense point cloud.
 
@@ -94,7 +94,7 @@ graph TD
 
 ---
 
-## âš™ï¸ 2. Detailed Algorithmic Workflow
+## GÜÖn+Å 2. Detailed Algorithmic Workflow
 
 The system is executed through `src/pipeline.py` which triggers a rigorous 7-stage process. 
 
@@ -130,7 +130,7 @@ sequenceDiagram
 
 ### Stage 4 & 5: Core Scene Understanding
 
-This is the dual-engine core of AeroTwin. It combines classical geometry with modern AI.
+This is the dual-engine core of AeroVision. It combines classical geometry with modern AI.
 
 ```mermaid
 flowchart LR
@@ -166,9 +166,9 @@ flowchart LR
 
 ---
 
-## ðŸ“Š 3. Confidence Estimation Algorithm
+## =ƒôè 3. Confidence Estimation Algorithm
 
-A unique feature of AeroTwin (`src/confidence/estimator.py`) is its ability to score the physical reliability of every generated 3D point.
+A unique feature of AeroVision (`src/confidence/estimator.py`) is its ability to score the physical reliability of every generated 3D point.
 
 **Heuristic Confidence Function:**
 
@@ -180,13 +180,13 @@ $C = 0.3(W_{obs}) + 0.3(W_{reproj}) + 0.2(W_{depth}) + 0.2(W_{gps})$
 - $W_{gps}$: GPS residual weight (Error in Procrustes alignment)
 
 Output is stored in `confidence.ply`:
-- ðŸŸ¢ **High (>66%)**: Solid, multi-view verified structures.
-- ðŸŸ¡ **Medium (33-66%)**: Edges or partially occluded regions.
-- ðŸ”´ **Low (<33%)**: Unreliable geometry (sky, moving cars, noise).
+- =ƒƒó **High (>66%)**: Solid, multi-view verified structures.
+- =ƒƒí **Medium (33-66%)**: Edges or partially occluded regions.
+- =ƒö¦ **Low (<33%)**: Unreliable geometry (sky, moving cars, noise).
 
 ---
 
-## ðŸ–¥ï¸ 4. Application Interfaces
+## =ƒûÑn+Å 4. Application Interfaces
 
 ### A. The PyQt5 Desktop Application (`v23d.py`)
 The primary offline processing GUI.
@@ -207,43 +207,43 @@ The premium, hardware-accelerated web interface powered by **Vite, React, and Th
 
 ---
 
-## ðŸ“ 5. Complete Directory Structure
+## =ƒôü 5. Complete Directory Structure
 
 ```text
 SIH/
-â”œâ”€â”€ v23d.py                  # PyQt5 Desktop Entry Point
-â”œâ”€â”€ V23D.bat                 # Windows execution script
-â”œâ”€â”€ pyproject.toml           # Python package definition
-â”œâ”€â”€ README.md                # Detailed System documentation
-â”œâ”€â”€ config/
-â”‚   â””â”€â”€ default.yaml         # Core hyperparameters (SfM, Extractor, Fusion)
-â”œâ”€â”€ models/
-â”‚   â””â”€â”€ midas_small.onnx     # Deep Learning Depth Model Weights
-â”œâ”€â”€ scripts/
-â”‚   â””â”€â”€ run_pipeline.py      # Headless CLI orchestrator
-â”œâ”€â”€ src/                     # Core Processing Logic
-â”‚   â”œâ”€â”€ pipeline.py          # Master Orchestrator (7-stages)
-â”‚   â”œâ”€â”€ confidence/          # Heuristic confidence grading
-â”‚   â”œâ”€â”€ depth/               # ONNX Depth inference
-â”‚   â”œâ”€â”€ frame_extraction/    # Laplacian scoring and selection
-â”‚   â”œâ”€â”€ geospatial/          # EPSG/UTM and Procrustes alignment
-â”‚   â”œâ”€â”€ reconstruction/      # Unprojection and Open3D voxelization
-â”‚   â”œâ”€â”€ sfm/                 # COLMAP Subprocess and Pose Graph
-â”‚   â””â”€â”€ viewer_server.py     # Local model server backend
-â””â”€â”€ viewer/                  # React + Three.js Web Application
-    â”œâ”€â”€ package.json         # Node dependencies
-    â”œâ”€â”€ vite.config.js       # Bundler settings
-    â””â”€â”€ src/
-        â”œâ”€â”€ main.js          # WebGL rendering and PLY Loading
-        â””â”€â”€ components/
-            â””â”€â”€ ui/
-                â”œâ”€â”€ demo.tsx         # Gateway UI demo wrapper
-                â””â”€â”€ gateway-flow.tsx # React/GSAP particle visualization
+Gö£GöÇGöÇ v23d.py                  # PyQt5 Desktop Entry Point
+Gö£GöÇGöÇ V23D.bat                 # Windows execution script
+Gö£GöÇGöÇ pyproject.toml           # Python package definition
+Gö£GöÇGöÇ README.md                # Detailed System documentation
+Gö£GöÇGöÇ config/
+Göé   GööGöÇGöÇ default.yaml         # Core hyperparameters (SfM, Extractor, Fusion)
+Gö£GöÇGöÇ models/
+Göé   GööGöÇGöÇ midas_small.onnx     # Deep Learning Depth Model Weights
+Gö£GöÇGöÇ scripts/
+Göé   GööGöÇGöÇ run_pipeline.py      # Headless CLI orchestrator
+Gö£GöÇGöÇ src/                     # Core Processing Logic
+Göé   Gö£GöÇGöÇ pipeline.py          # Master Orchestrator (7-stages)
+Göé   Gö£GöÇGöÇ confidence/          # Heuristic confidence grading
+Göé   Gö£GöÇGöÇ depth/               # ONNX Depth inference
+Göé   Gö£GöÇGöÇ frame_extraction/    # Laplacian scoring and selection
+Göé   Gö£GöÇGöÇ geospatial/          # EPSG/UTM and Procrustes alignment
+Göé   Gö£GöÇGöÇ reconstruction/      # Unprojection and Open3D voxelization
+Göé   Gö£GöÇGöÇ sfm/                 # COLMAP Subprocess and Pose Graph
+Göé   GööGöÇGöÇ viewer_server.py     # Local model server backend
+GööGöÇGöÇ viewer/                  # React + Three.js Web Application
+    Gö£GöÇGöÇ package.json         # Node dependencies
+    Gö£GöÇGöÇ vite.config.js       # Bundler settings
+    GööGöÇGöÇ src/
+        Gö£GöÇGöÇ main.js          # WebGL rendering and PLY Loading
+        GööGöÇGöÇ components/
+            GööGöÇGöÇ ui/
+                Gö£GöÇGöÇ demo.tsx         # Gateway UI demo wrapper
+                GööGöÇGöÇ gateway-flow.tsx # React/GSAP particle visualization
 ```
 
 ---
 
-## ðŸŽ›ï¸ 6. Hyperparameter Configuration (`config/default.yaml`)
+## =ƒÄ¢n+Å 6. Hyperparameter Configuration (`config/default.yaml`)
 
 Tuning these parameters dictates the balance between processing speed and 3D model quality.
 
@@ -258,7 +258,7 @@ Tuning these parameters dictates the balance between processing speed and 3D mod
 
 ---
 
-## ðŸš€ 7. Setup & Execution Instructions
+## =ƒÜÇ 7. Setup & Execution Instructions
 
 ### A. System Requirements
 - **OS**: Windows 10/11, Ubuntu 20.04+, macOS 12+
@@ -286,7 +286,7 @@ python v23d.py
 
 **Via CLI (Headless):**
 ```bash
-aerotwin path/to/drone_video.mp4 --gps path/to/telemetry.csv --output ./my_model
+AeroVision path/to/drone_video.mp4 --gps path/to/telemetry.csv --output ./my_model
 ```
 
 ### D. Launching the Nexus Web Viewer
@@ -298,7 +298,7 @@ npm run dev
 ```
 Navigate to `http://localhost:5173`.
 
-### âš ï¸ Common Troubleshooting
+### GÜán+Å Common Troubleshooting
 - **COLMAP Errors**: Ensure typing `colmap` in your terminal launches the program. If not, add the COLMAP installation directory to your System Environment Variables (`PATH`).
 - **CUDA OOM (Out of Memory)**: If the pipeline crashes during the depth stage, lower `batch_size: 2` in `config/default.yaml`.
 - **No Dense Cloud Generated**: This usually implies the SfM matching failed. Try reducing `blur_threshold` or increasing `target_fps` to ensure frames overlap sufficiently.

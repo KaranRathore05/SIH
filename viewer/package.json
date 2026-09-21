@@ -1,5 +1,5 @@
 {
-  "name": "aerotwin-viewer",
+  "name": "aerovision-viewer",
   "version": "0.1.0",
   "description": "3D point cloud viewer with measurement tools",
   "type": "module",
